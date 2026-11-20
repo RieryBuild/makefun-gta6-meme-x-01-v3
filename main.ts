@@ -2,15 +2,20 @@
 //
 // The entry is the X post itself: POST.json (written after the post goes
 // live) holds the post URL, and this program validates it and copies it to
-// ./output/entry.json so the grader can see the entry link in a stable,
-// deterministic form.
+// $MAKEFUN_OUTPUT_DIR/entry.json (default /output) so the grader can see
+// the entry link in a stable, deterministic form.
+//
+// The output directory comes from the environment, not from the repo: the
+// grader mounts the repo read-only, so writing next to main.ts would fail.
+// If MAKEFUN_OUTPUT_DIR is unset, /output is used.
 //
 // Usage:
-//   node main.ts                 # reads ./POST.json, writes ./output/entry.json
+//   node main.ts                 # reads ./POST.json, writes $MAKEFUN_OUTPUT_DIR/entry.json
 //   node main.ts <path>          # reads <path> instead of ./POST.json
 //
-// Exit codes: 0 = valid entry link written; 1 = usage error;
-// 2 = POST.json missing or not valid JSON; 3 = URL fails validation.
+// Exit codes: 0 = valid entry link written; 1 = usage error or output
+// write failure; 2 = POST.json missing or not valid JSON;
+// 3 = URL fails validation.
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -81,9 +86,16 @@ export function main(argv: string[]): number {
     console.error((error as Error).message);
     return 3;
   }
-  const outDir = join(dirname(fileURLToPath(import.meta.url)), "output");
-  mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, "entry.json"), renderEntry(link), "utf8");
+  // Output goes to MAKEFUN_OUTPUT_DIR (default /output), never into the
+  // repo: the grader mounts the repo read-only.
+  const outDir = resolve(process.env.MAKEFUN_OUTPUT_DIR ?? "/output");
+  try {
+    mkdirSync(outDir, { recursive: true });
+    writeFileSync(join(outDir, "entry.json"), renderEntry(link), "utf8");
+  } catch (error) {
+    console.error(`cannot write entry.json to ${outDir}: ${(error as Error).message}`);
+    return 1;
+  }
   console.log(`entry link OK: ${link.url}`);
   return 0;
 }
