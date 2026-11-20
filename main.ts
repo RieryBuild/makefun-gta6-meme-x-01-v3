@@ -46,7 +46,12 @@ export function parseEntryLink(raw: string): EntryLink {
   if (url.protocol !== "https:") {
     throw new Error("POST.json url must use https");
   }
-  if (url.hostname !== STATUS_HOST) {
+  if (url.port !== "") {
+    throw new Error("POST.json url must not carry a port");
+  }
+  // URL parsing already lowercases the hostname; lowercasing again is a
+  // cheap guard if this ever runs on a non-WHATWG parser.
+  if (url.hostname.toLowerCase() !== STATUS_HOST) {
     throw new Error(`POST.json url must be on ${STATUS_HOST}`);
   }
   if (!STATUS_PATH.test(url.pathname)) {
